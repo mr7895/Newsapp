@@ -16,8 +16,8 @@ const News = (props) => {
 
   const buildApiUrl = (pageNo) => {
     const baseUrl = props.searchQuery
-      ? `https://newsapi.org/v2/everything?q=${props.searchQuery}&apiKey=${props.apiKey}&page=${pageNo}&pageSize=${props.pageSize}&sortBy=publishedAt`
-      : `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${pageNo}&pageSize=${props.pageSize}`;
+      ? `https://gnews.io/api/v4/search?q=${props.searchQuery}&token=${props.apiKey}&page=${pageNo}&max=${props.pageSize}`
+      : `https://gnews.io/api/v4/top-headlines?country=${props.country}&topic=${props.category}&token=${props.apiKey}&page=${pageNo}&max=${props.pageSize}`;
 
     return baseUrl;
   };
