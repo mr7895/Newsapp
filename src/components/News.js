@@ -16,8 +16,8 @@ const News = (props) => {
 
   const buildApiUrl = (pageNo) => {
     const baseUrl = props.searchQuery
-      ? `https://newsapi.org/v2/everything?q=${props.searchQuery}&apiKey=${props.apiKey}&page=${pageNo}&pageSize=${props.pageSize}&sortBy=publishedAt`
-      : `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${pageNo}&pageSize=${props.pageSize}`;
+      ? `https://gnews.io/api/v4/search?q=${props.searchQuery}&token=${props.apiKey}&page=${pageNo}&max=${props.pageSize}`
+      : `https://gnews.io/api/v4/top-headlines?country=${props.country}&topic=${props.category}&token=${props.apiKey}&page=${pageNo}&max=${props.pageSize}`;
 
     return baseUrl;
   };
@@ -43,8 +43,16 @@ const News = (props) => {
         throw new Error(parsedData.message || 'Failed to fetch news');
       }
 
-      setArticles(parsedData.articles || []);
-      setTotalResults(parsedData.totalResults || 0);
+      setArticles(parsedData.articles.map(article => ({
+        title: article.title,
+        description: article.description,
+        url: article.url,
+        urlToImage: article.image,
+        publishedAt: article.publishedAt,
+        author: article.source.name,
+        source: { name: article.source.name }
+      })));
+      setTotalResults(parsedData.totalArticles || 0);
     } catch (error) {
       console.error('Error fetching news:', error);
       setError(error.message);
@@ -70,12 +78,12 @@ const News = (props) => {
     // eslint-disable-next-line
   }, [page]);
 
-  // Effect for search query changes
+  // Effect for search query, category, and apiKey changes
   useEffect(() => {
     setPage(1);
     updateNews();
     // eslint-disable-next-line
-  }, [props.searchQuery, props.category]);
+  }, [props.searchQuery, props.category, props.apiKey]);
 
   return (
     <div className="container my-3">
@@ -102,8 +110,8 @@ const News = (props) => {
       {!loading && !error && articles.length > 0 && (
         <>
           <div className="row">
-            {articles.map((element, index) => (
-              <div className="col-md-4" key={element.url || index}>
+            {articles.map((element) => (
+              <div className="col-md-4" key={element.url}>
                 <NewsItem
                   title={element.title || ''}
                   description={element.description || ''}
@@ -154,6 +162,9 @@ News.propTypes = {
   country: PropTypes.string,
   pageSize: PropTypes.number,
   category: PropTypes.string,
+  apiKey: PropTypes.string.isRequired,
+  searchQuery: PropTypes.string,
+  setProgress: PropTypes.func.isRequired,
 };
 
 export default News;
