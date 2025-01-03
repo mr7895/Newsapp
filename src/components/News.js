@@ -8,12 +8,12 @@ const News = (props) => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const [error, setError] = useState(null);
 
   const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
-  // Build the API URL
   const buildApiUrl = (pageNo) => {
     const baseUrl = props.searchQuery
       ? `https://newsapi.org/v2/everything?q=${props.searchQuery}&apiKey=${props.apiKey}&page=${pageNo}&pageSize=${props.pageSize}&sortBy=publishedAt`
@@ -25,39 +25,57 @@ const News = (props) => {
   const updateNews = async () => {
     props.setProgress(10);
     setLoading(true);
+    setError(null);
 
     try {
       const url = buildApiUrl(page);
-      let data = await fetch(url);
+      const response = await fetch(url);
       props.setProgress(30);
 
-      const parsedData = await data.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const parsedData = await response.json();
       props.setProgress(70);
 
-      setArticles(parsedData.articles);
-      setTotalResults(parsedData.totalResults);
+      if (parsedData.status === 'error') {
+        throw new Error(parsedData.message || 'Failed to fetch news');
+      }
+
+      setArticles(parsedData.articles || []);
+      setTotalResults(parsedData.totalResults || 0);
     } catch (error) {
       console.error('Error fetching news:', error);
+      setError(error.message);
+      setArticles([]);
+      setTotalResults(0);
+    } finally {
+      setLoading(false);
+      props.setProgress(100);
     }
-    setLoading(false);
-    props.setProgress(100);
   };
 
-  const handlePrevClick = async () => {
-    setPage(page - 1);
-    updateNews();
+  const handlePrevClick = () => {
+    setPage(prev => prev - 1);
   };
 
-  const handleNextClick = async () => {
-    setPage(page + 1);
-    updateNews();
+  const handleNextClick = () => {
+    setPage(prev => prev + 1);
   };
 
+  // Effect for page changes
   useEffect(() => {
-    setPage(1); // Reset page when search query changes
     updateNews();
     // eslint-disable-next-line
-  }, [props.searchQuery]);
+  }, [page]);
+
+  // Effect for search query changes
+  useEffect(() => {
+    setPage(1);
+    updateNews();
+    // eslint-disable-next-line
+  }, [props.searchQuery, props.category]);
 
   return (
     <div className="container my-3">
@@ -68,46 +86,60 @@ const News = (props) => {
       </h1>
 
       {loading && <Spinner />}
+      
+      {error && (
+        <div className="alert alert-danger text-center" role="alert">
+          {error}
+        </div>
+      )}
 
-      <div className="row">
-        {!loading && articles.map((element, index) => {
-          return (
-            <div className="col-md-4" key={element.url || index}>
-              <NewsItem
-                title={element.title || ''}
-                description={element.description || ''}
-                imageUrl={element.urlToImage}
-                newsUrl={element.url}
-                author={element.author}
-                date={element.publishedAt}
-                source={element.source.name}
-              />
-            </div>
-          );
-        })}
-      </div>
+      {!loading && !error && articles.length === 0 && (
+        <div className="alert alert-info text-center" role="alert">
+          No articles found.
+        </div>
+      )}
 
-      <div className="container d-flex justify-content-between my-3">
-        <button 
-          disabled={page <= 1} 
-          type="button" 
-          className="btn btn-dark" 
-          onClick={handlePrevClick}
-        >
-          &larr; Previous
-        </button>
-        <span className="badge bg-info text-dark fs-5">
-          Page {page} of {Math.ceil(totalResults/props.pageSize)}
-        </span>
-        <button 
-          disabled={page >= Math.ceil(totalResults/props.pageSize)} 
-          type="button" 
-          className="btn btn-dark" 
-          onClick={handleNextClick}
-        >
-          Next &rarr;
-        </button>
-      </div>
+      {!loading && !error && articles.length > 0 && (
+        <>
+          <div className="row">
+            {articles.map((element, index) => (
+              <div className="col-md-4" key={element.url || index}>
+                <NewsItem
+                  title={element.title || ''}
+                  description={element.description || ''}
+                  imageUrl={element.urlToImage}
+                  newsUrl={element.url}
+                  author={element.author}
+                  date={element.publishedAt}
+                  source={element.source?.name || 'Unknown'}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="container d-flex justify-content-between my-3">
+            <button 
+              disabled={page <= 1} 
+              type="button" 
+              className="btn btn-dark" 
+              onClick={handlePrevClick}
+            >
+              &larr; Previous
+            </button>
+            <span className="badge bg-info text-dark fs-5">
+              Page {page} of {Math.ceil(totalResults/props.pageSize)}
+            </span>
+            <button 
+              disabled={page >= Math.ceil(totalResults/props.pageSize)} 
+              type="button" 
+              className="btn btn-dark" 
+              onClick={handleNextClick}
+            >
+              Next &rarr;
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
